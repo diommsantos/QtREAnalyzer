@@ -12,7 +12,7 @@ built extensions will be provided in the future for the latest Ghidra versions.
 2. Navigate to the `QtREAnalyzer\QtREAnalyzer` folder
 
 ```bash
-cd QtREAnalyzer\GSync
+cd QtREAnalyzer\QtREAnalyzer
 ```
  
 3. Build the plugin for your Ghidra installation (replace `$GHIDRA_DIR` with your installation directory).
@@ -26,7 +26,7 @@ gradle -PGHIDRA_INSTALL_DIR=$GHIDRA_DIR
 ## Install the Analyzer
 
 1. From Ghidra projects manager: ``File`` -> ``Install Extensions...``, click on the
-   `+` sign and select the `QtREAnalyzer\QtREAnalyzer\dist\ghidra_*_GSync.zip` and click OK.
+   `+` sign and select the `QtREAnalyzer\QtREAnalyzer\dist\ghidra_*_QtREAnalyzer.zip` and click OK.
 2. Restart Ghidra as requested
 
 ## Troubleshooting
