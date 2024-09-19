@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import ghidra.app.plugin.processors.sleigh.SleighLanguage;
+import ghidra.app.util.importer.MessageLog;
 import ghidra.pcode.emu.PcodeEmulator;
 import ghidra.pcode.emu.PcodeThread;
 import ghidra.pcode.exec.PcodeExecutorState;
@@ -37,6 +38,7 @@ import ghidra.util.exception.InvalidInputException;
 
 public class QtClassSolver {
 	
+	MessageLog log;
 	QtClass qtClass;
 	Program program;
 	Memory memory;
@@ -47,6 +49,7 @@ public class QtClassSolver {
 	QtTypesManager qtTypesManager;
 	
 	public QtClassSolver(QtClass ghidraClass) {
+		this.log = QtREAnalzyerAnalyzer.getMessageLog();
 		this.qtClass = ghidraClass;
 		this.program = ghidraClass.getSymbol().getProgram();
 		this.memory = program.getMemory();
@@ -73,9 +76,9 @@ public class QtClassSolver {
 									   staticMetaObjectAddress.add(qMetaObject.getAlignedLength()), 
 									   false);
 				return listing.createData(staticMetaObjectAddress, qMetaObject);
-			} catch (InvalidInputException | CodeUnitInsertionException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
+			} catch (RuntimeException | InvalidInputException | CodeUnitInsertionException e) {
+				log.appendMsg("QtClassSolver: It was not possible to solve staticMetaObject for the " +
+							  qtClass.getName()+" class.");
 				return null;
 			}
 	}
@@ -105,9 +108,9 @@ public class QtClassSolver {
 			DataType qtMetaStringdata = getQtMetaStringdata(address);
 			listing.clearCodeUnits(address, address.add(qtMetaStringdata.getAlignedLength()), false);
 			return listing.createData(address, qtMetaStringdata);
-		} catch (InvalidInputException | MemoryAccessException | CodeUnitInsertionException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
+		} catch (RuntimeException | InvalidInputException | MemoryAccessException | CodeUnitInsertionException e) {
+			log.appendMsg("QtClassSolver: It was not possible to solve qt_meta_stringdata_" + qtClass.getName() +
+					" for the " + qtClass.getName() + " class.");
 			return null;
 		}
 	}
@@ -146,9 +149,9 @@ public class QtClassSolver {
 			DataType qtMetaDataType = getQtMetaData(address);
 			symbolTable.createLabel(address, "qt_meta_data_"+qtClass.getName(), qtClass, SourceType.ANALYSIS);
 			return listing.createData(address, qtMetaDataType);
-		} catch(MemoryAccessException | InvalidInputException | CodeUnitInsertionException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
+		} catch(RuntimeException | MemoryAccessException | InvalidInputException | CodeUnitInsertionException e) {
+			log.appendMsg("QtClassSolver: It was not possible to solve qt_meta_data_" + qtClass.getName() +
+					" for the " + qtClass.getName() + " class.");
 			return null;
 		}
 	}
@@ -179,7 +182,8 @@ public class QtClassSolver {
 		qtMetaDataMethodDT.add(intDataType, "tag", null);
 		qtMetaDataMethodDT.add(intDataType, "flags", null);
 		
-		qtMetaDataType.insertAtOffset(intLenght*methodsIndex, 
+		if(methodsCount > 0)
+			qtMetaDataType.insertAtOffset(intLenght*methodsIndex, 
 				new ArrayDataType(qtMetaDataMethodDT, methodsCount), 0);
 		
 		//constructs the method parameters

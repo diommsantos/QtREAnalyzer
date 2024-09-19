@@ -286,7 +286,7 @@ class QtMetaDataData extends QtData {
 									   );
 			
 			int qtArgc = qtMetaDataMethods[i].qtArgc();
-			Data qtMetaDataParametersData = data.getComponentContaining((qtMethods_index+1) * intLenght).getComponent(i);
+			Data qtMetaDataParametersData = data.getComponentContaining((qtMetaDataMethods[i].qtParameter()) * intLenght).getComponent(i);
 			int[] qtParameters = 	  new int[qtArgc];
 			int[] qtParametersIndex = new int[qtArgc];
 			for(int j = 0; j < qtArgc; j++) {
@@ -301,7 +301,7 @@ class QtMetaDataData extends QtData {
 		}
 		
 		for(int i = 0; i < qtProperties_count; i++) {
-			Data qtMetaDataPropertieData = data.getComponent(qtProperties_index * intLenght).getComponent(i);
+			Data qtMetaDataPropertieData = data.getComponentContaining(qtProperties_index * intLenght).getComponent(i);
 			qtMetaDataProperties[i] = new QtMetaDataPropertie(
 										  	(int) ((Scalar) qtMetaDataPropertieData.getComponent(0).getValue()).getValue(),
 										  	(int) ((Scalar) qtMetaDataPropertieData.getComponent(1).getValue()).getValue(),

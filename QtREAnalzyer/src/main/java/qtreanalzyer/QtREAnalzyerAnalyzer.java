@@ -43,6 +43,8 @@ public class QtREAnalzyerAnalyzer extends AbstractAnalyzer {
 	
 	boolean analyzed = false;
 	
+	static MessageLog messageLog;
+	
 	public QtREAnalzyerAnalyzer() {
 
 		// TODO: Name the analyzer and give it a description.
@@ -86,6 +88,7 @@ public class QtREAnalzyerAnalyzer extends AbstractAnalyzer {
 			throws CancelledException {
 		if(analyzed)
 			return true;
+		messageLog = log;
 		SymbolTable symbolTable = program.getSymbolTable();
 		QtTypesManager qtTypesManager = new QtTypesManager(program);
 		Iterator<GhidraClass> classNamespacesIterator = symbolTable.getClassNamespaces();
@@ -95,5 +98,9 @@ public class QtREAnalzyerAnalyzer extends AbstractAnalyzer {
 				ghidraClass.solve();
 		}
 		return (analyzed = true);
+	}
+	
+	public static MessageLog getMessageLog() {
+		return messageLog;
 	}
 }
