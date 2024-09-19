@@ -102,6 +102,8 @@ public class QtClassSolver {
 	}
 	
 	public Data solveQtMetaStringdata() {
+		if(qtClass.getQMetaObjectData() == null)
+			return null;
 		try {
 			Address address = qtClass.getQMetaObjectData().getStringdata();
 			symbolTable.createLabel(address, "qt_meta_stringdata_"+qtClass.getName(), qtClass, SourceType.ANALYSIS);
@@ -144,10 +146,14 @@ public class QtClassSolver {
 	}
 	
 	public Data solveQtMetaData() {
+		if(qtClass.getQMetaObjectData() == null)
+			return null;
 		try {
 			Address address = qtClass.getQMetaObjectData().getQtData();
-			DataType qtMetaDataType = getQtMetaData(address);
 			symbolTable.createLabel(address, "qt_meta_data_"+qtClass.getName(), qtClass, SourceType.ANALYSIS);
+			
+			DataType qtMetaDataType = getQtMetaData(address);
+			listing.clearCodeUnits(address, address.add(qtMetaDataType.getAlignedLength()), false);
 			return listing.createData(address, qtMetaDataType);
 		} catch(RuntimeException | MemoryAccessException | InvalidInputException | CodeUnitInsertionException e) {
 			log.appendMsg("QtClassSolver: It was not possible to solve qt_meta_data_" + qtClass.getName() +
