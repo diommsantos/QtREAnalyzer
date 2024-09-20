@@ -79,7 +79,7 @@ public class QtClassSolver {
 				
 				DataType qMetaObject = qtTypesManager.getQMetaObject();
 				listing.clearCodeUnits(staticMetaObjectAddress, 
-									   staticMetaObjectAddress.add(qMetaObject.getAlignedLength()), 
+									   staticMetaObjectAddress.add(qMetaObject.getAlignedLength() - 1), 
 									   false);
 				return listing.createData(staticMetaObjectAddress, qMetaObject);
 			} catch (RuntimeException | InvalidInputException | CodeUnitInsertionException e) {
@@ -114,7 +114,7 @@ public class QtClassSolver {
 			Address address = qtClass.getQMetaObjectData().getStringdata();
 			symbolTable.createLabel(address, "qt_meta_stringdata_"+qtClass.getName(), qtClass, SourceType.ANALYSIS);
 			DataType qtMetaStringdata = getQtMetaStringdata(address);
-			listing.clearCodeUnits(address, address.add(qtMetaStringdata.getAlignedLength()), false);
+			listing.clearCodeUnits(address, address.add(qtMetaStringdata.getAlignedLength() - 1), false);
 			return listing.createData(address, qtMetaStringdata);
 		} catch (RuntimeException | InvalidInputException | MemoryAccessException | CodeUnitInsertionException e) {
 			log.appendMsg("QtClassSolver: It was not possible to solve qt_meta_stringdata_" + qtClass.getName() +
@@ -159,7 +159,7 @@ public class QtClassSolver {
 			symbolTable.createLabel(address, "qt_meta_data_"+qtClass.getName(), qtClass, SourceType.ANALYSIS);
 			
 			DataType qtMetaDataType = getQtMetaData(address);
-			listing.clearCodeUnits(address, address.add(qtMetaDataType.getAlignedLength()), false);
+			listing.clearCodeUnits(address, address.add(qtMetaDataType.getAlignedLength() - 1), false);
 			return listing.createData(address, qtMetaDataType);
 		} catch(RuntimeException | MemoryAccessException | InvalidInputException | CodeUnitInsertionException e) {
 			log.appendMsg("QtClassSolver: It was not possible to solve qt_meta_data_" + qtClass.getName() +
