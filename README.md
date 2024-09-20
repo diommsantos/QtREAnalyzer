@@ -38,9 +38,20 @@ exists.
 ![QtREAnalyzer Usage](/docs/QtREAnalyzer_usage.gif)
 
 # TODO
-- [ ] Recover function and propertie names from Qt metadata.
+- [ ] Recover function signatures from Qt metadata.
+- [ ] Recover properties names and types from Qt metadata.
+- [ ] Recover connections between signals and slots.
 - [ ] Identify and recover more Qt classes and methods.
 
 # Limitations
 
 Currently QtREAnalyzer only works with x32 or x64 binaries that have RTTI (i.e compiled with the MSVC compiler). This is so since QtREAnalyzer uses RTTI to find if classes inherit from QObject. This said if one wants to extend this analyzer to work with binaries without RTTI all that is necessary to do is modify the ``RttiClass.java`` file appropriately.
+
+# Acknowledgments
+
+QtREAnalyzer would have not been possible without the following amazing resources:
+
+- https://www.usenix.org/conference/usenixsecurity23/presentation/wen and its github page https://github.com/OSUSecLab/QtRE
+- https://ktln2.org/reversing-c%2B%2B-qt-applications-using-ghidra/
+- https://woboq.com/blog/how-qt-signals-slots-work.html
+- https://www.codeproject.com/articles/31330/qt-internals-reversing
