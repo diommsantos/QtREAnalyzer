@@ -61,6 +61,8 @@ public class QtClass extends RttiClass{
 		
 		Data qtMetaData = qtClassSolver.solveQtMetaData();
 		qtMetaDataData = qtMetaData != null ? new QtMetaDataData(qtMetaData) : null;
+		
+		qtClassSolver.solveQtStaticMetacall();
 	}
 	
 	public QMetaObjectData getQMetaObjectData() {

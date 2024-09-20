@@ -92,15 +92,25 @@ public class QtREAnalzyerAnalyzer extends AbstractAnalyzer {
 		SymbolTable symbolTable = program.getSymbolTable();
 		QtTypesManager qtTypesManager = new QtTypesManager(program);
 		Iterator<GhidraClass> classNamespacesIterator = symbolTable.getClassNamespaces();
+		initializeTaskMonitor(monitor, symbolTable);
 		while(classNamespacesIterator.hasNext()) {
 			QtClass ghidraClass = new QtClass(classNamespacesIterator.next());
 			if(ghidraClass.isQtClass())
 				ghidraClass.solve();
+			monitor.incrementProgress();
 		}
 		return (analyzed = true);
 	}
 	
 	public static MessageLog getMessageLog() {
 		return messageLog;
+	}
+	
+	private void initializeTaskMonitor(TaskMonitor monitor, SymbolTable symbolTable) {
+		Iterator<GhidraClass> classNamespacesIterator = symbolTable.getClassNamespaces();
+		int i = 0;
+		for ( ; classNamespacesIterator.hasNext() ; ++i ) classNamespacesIterator.next();
+		monitor.initialize(i);
+		
 	}
 }

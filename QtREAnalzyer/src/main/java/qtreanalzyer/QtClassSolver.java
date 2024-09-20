@@ -17,7 +17,9 @@ import ghidra.program.model.data.ArrayDataType;
 import ghidra.program.model.data.DataType;
 import ghidra.program.model.data.DataTypeConflictHandler;
 import ghidra.program.model.data.DataTypeManager;
+import ghidra.program.model.data.PointerDataType;
 import ghidra.program.model.data.StructureDataType;
+import ghidra.program.model.listing.CircularDependencyException;
 import ghidra.program.model.listing.Data;
 import ghidra.program.model.listing.Function;
 import ghidra.program.model.listing.FunctionManager;
@@ -25,7 +27,10 @@ import ghidra.program.model.listing.GhidraClass;
 import ghidra.program.model.listing.Instruction;
 import ghidra.program.model.listing.InstructionIterator;
 import ghidra.program.model.listing.Listing;
+import ghidra.program.model.listing.ParameterImpl;
 import ghidra.program.model.listing.Program;
+import ghidra.program.model.listing.Variable;
+import ghidra.program.model.listing.Function.FunctionUpdateType;
 import ghidra.program.model.mem.Memory;
 import ghidra.program.model.mem.MemoryAccessException;
 import ghidra.program.model.pcode.PcodeOp;
@@ -34,6 +39,7 @@ import ghidra.program.model.symbol.SourceType;
 import ghidra.program.model.symbol.Symbol;
 import ghidra.program.model.symbol.SymbolTable;
 import ghidra.program.model.util.CodeUnitInsertionException;
+import ghidra.util.exception.DuplicateNameException;
 import ghidra.util.exception.InvalidInputException;
 
 public class QtClassSolver {
@@ -224,6 +230,41 @@ public class QtClassSolver {
 			qtMetaDataType.insertAtOffset(intLenght*propertiesIndex, new ArrayDataType(qtMetaDataPropsDT, propertiesCount), 0);
 		
 		return qtMetaDataType;
+	}
+	
+	public Function solveQtStaticMetacall() {
+		if(qtClass.getQMetaObjectData() == null)
+			return null;
+		try {
+			Address adress = qtClass.getQMetaObjectData().getQtStatic_metacall();
+			Function qtStaticMetacall = functionManager.getFunctionAt(adress);
+			
+			qtStaticMetacall.setName("qt_static_metacall", SourceType.ANALYSIS);
+			qtStaticMetacall.setParentNamespace(qtClass);
+			
+			qtStaticMetacall.setCallingConvention("__fastcall");
+			
+			DataType voidType = dataTypeManager.getDataType("/void");
+			qtStaticMetacall.setReturnType(voidType, SourceType.ANALYSIS);
+			
+			DataType qMetaObjectPtr = new PointerDataType(qtTypesManager.getQMetaObject(), dataTypeManager);
+			ParameterImpl _o = new ParameterImpl("_o", qMetaObjectPtr, program, SourceType.ANALYSIS);
+			
+			ParameterImpl _c = new ParameterImpl("_c", dataTypeManager.getDataType("/int"), program, SourceType.ANALYSIS);
+			
+			ParameterImpl _id = new ParameterImpl("_id", dataTypeManager.getDataType("/int"), program, SourceType.ANALYSIS);
+			
+			DataType voidPtrPtrType = new PointerDataType(new PointerDataType(dataTypeManager.getDataType("/void")));
+			ParameterImpl _a = new ParameterImpl("_a", voidPtrPtrType, program, SourceType.ANALYSIS);
+			
+			qtStaticMetacall.replaceParameters(FunctionUpdateType.DYNAMIC_STORAGE_ALL_PARAMS, true, 
+											   SourceType.ANALYSIS, _o, _c, _id, _a);
+			return qtStaticMetacall;
+		} catch(RuntimeException | InvalidInputException | DuplicateNameException | CircularDependencyException e) {
+			log.appendMsg("QtClassSolver: It was not possible to solve qt_static_metacall"+
+					" for the " + qtClass.getName() + " class.");
+			return null;
+		}
 	}
 	
 	public Address getMethod(int index, Data qMetaObject) {
