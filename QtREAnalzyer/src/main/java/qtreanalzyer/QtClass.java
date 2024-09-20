@@ -7,6 +7,7 @@ import ghidra.program.model.data.Array;
 import ghidra.program.model.data.ArrayDataType;
 import ghidra.program.model.data.DataType;
 import ghidra.program.model.listing.Data;
+import ghidra.program.model.listing.Function;
 import ghidra.program.model.listing.GhidraClass;
 import ghidra.program.model.mem.MemoryAccessException;
 import ghidra.program.model.scalar.Scalar;
@@ -25,6 +26,7 @@ public class QtClass extends RttiClass{
 	QMetaObjectData qMetaObjectData;
 	QtMetaStringdataData qtMetaStringdataData;
 	QtMetaDataData qtMetaDataData;
+	Function qtStaticMetacall;
 	
 	QtClassSolver qtClassSolver;
 	
@@ -62,11 +64,26 @@ public class QtClass extends RttiClass{
 		Data qtMetaData = qtClassSolver.solveQtMetaData();
 		qtMetaDataData = qtMetaData != null ? new QtMetaDataData(qtMetaData) : null;
 		
-		qtClassSolver.solveQtStaticMetacall();
+		qtStaticMetacall = qtClassSolver.solveQtStaticMetacall();
+		
+		qtClassSolver.annotateQtStaticMetacall();
+		
 	}
 	
 	public QMetaObjectData getQMetaObjectData() {
 		return qMetaObjectData;
+	}
+	
+	public QtMetaStringdataData getQtMetaStringdataData() {
+		return qtMetaStringdataData;
+	}
+	
+	public QtMetaDataData getQtMetaDataData() {
+		return qtMetaDataData;
+	}
+	
+	public Function getQtStaticMetacall() {
+		return qtStaticMetacall;
 	}
 
 }
@@ -310,6 +327,24 @@ class QtMetaDataData extends QtData {
 										  	(int) ((Scalar) qtMetaDataPropertieData.getComponent(2).getValue()).getValue()
 										  );
 		}
+	}
+	
+	record QtMetaDataMethodInfo(QtMetaDataMethod method, QtMetaDataParameters params) {}
+	
+	public int getQtMethodsCount() {
+		return qtMethods_count;
+	}
+	
+	public int getQtPropertiesCount() {
+		return qtProperties_count;
+	}
+	
+	public QtMetaDataMethodInfo getQtMetaDataMethodInfo(int index) {
+		return new QtMetaDataMethodInfo(qtMetaDataMethods[index], qtMetaDataParameters[index]);
+	}
+	
+	public QtMetaDataPropertie getQtMetaDataPropertie(int index) {
+		return qtMetaDataProperties[index];
 	}
 	
 }

@@ -17,9 +17,11 @@ import ghidra.program.model.data.ArrayDataType;
 import ghidra.program.model.data.DataType;
 import ghidra.program.model.data.DataTypeConflictHandler;
 import ghidra.program.model.data.DataTypeManager;
+import ghidra.program.model.data.EnumDataType;
 import ghidra.program.model.data.PointerDataType;
 import ghidra.program.model.data.StructureDataType;
 import ghidra.program.model.listing.CircularDependencyException;
+import ghidra.program.model.listing.CodeUnit;
 import ghidra.program.model.listing.Data;
 import ghidra.program.model.listing.Function;
 import ghidra.program.model.listing.FunctionManager;
@@ -41,6 +43,7 @@ import ghidra.program.model.symbol.SymbolTable;
 import ghidra.program.model.util.CodeUnitInsertionException;
 import ghidra.util.exception.DuplicateNameException;
 import ghidra.util.exception.InvalidInputException;
+import qtreanalzyer.QtMetaDataData.QtMetaDataMethodInfo;
 
 public class QtClassSolver {
 	
@@ -54,6 +57,8 @@ public class QtClassSolver {
 	DataTypeManager dataTypeManager;
 	QtTypesManager qtTypesManager;
 	
+	EnumDataType qMetaTypeTypes;
+	
 	public QtClassSolver(QtClass ghidraClass) {
 		this.log = QtREAnalzyerAnalyzer.getMessageLog();
 		this.qtClass = ghidraClass;
@@ -64,6 +69,7 @@ public class QtClassSolver {
 		this.functionManager = program.getFunctionManager();
 		this.dataTypeManager = program.getDataTypeManager();
 		this.qtTypesManager = QtTypesManager.getQtTypesManager();
+		this.qMetaTypeTypes = qtTypesManager.getQMetaTypeTypes();
 	}
 	
 	
@@ -265,6 +271,58 @@ public class QtClassSolver {
 					" for the " + qtClass.getName() + " class.");
 			return null;
 		}
+	}
+	
+	public void annotateQtStaticMetacall() {
+		if(qtClass.getQtStaticMetacall() == null)
+			return;
+		try {
+			int methodsCount = qtClass.getQtMetaDataData().getQtMethodsCount();
+			String comment = "Methods: " + getMethodSignature(0)+"\n";
+			for(int i = 1; i < methodsCount; i++) {
+				comment +=   "         " + getMethodSignature(i)+"\n";
+			}
+			
+			Address adress = qtClass.getQtStaticMetacall().getEntryPoint();
+			listing.setComment(adress, CodeUnit.PLATE_COMMENT, comment);
+			return;
+		} catch (RuntimeException e) {
+			log.appendMsg("QtClassSolver: It was not possible to annotate qt_static_metacall"+
+					" for the " + qtClass.getName() + " class.");
+			return;
+		}
+	}
+	
+	private String getMethodSignature(int index) {
+		QtMetaDataMethodInfo methodInfo = qtClass.getQtMetaDataData().getQtMetaDataMethodInfo(index);
+		QtMetaStringdataData stringdata = qtClass.getQtMetaStringdataData();
+		
+		String signature = "";
+		
+		int returnType = methodInfo.params().qtReturn(); 
+		signature += (qMetaTypeTypes.contains(returnType) ? qMetaTypeTypes.getName(returnType) : "unknown") + " ";
+		
+		int methodName = methodInfo.method().qtName();
+		signature += stringdata.getQtStringdata(methodName);
+		
+		signature += "(";
+		int i = 0;
+		for(; i < methodInfo.method().qtArgc()-1; i++) {
+			int paramType = methodInfo.params().qtParameters()[i];
+			signature += (qMetaTypeTypes.contains(paramType) ? qMetaTypeTypes.getName(paramType) : "unknown") + " ";
+			
+			int paramName = methodInfo.params().qtParametersIndex()[i];
+			signature += stringdata.getQtStringdata(paramName)+", ";
+		}
+		
+		int paramType = methodInfo.params().qtParameters()[i];
+		signature += (qMetaTypeTypes.contains(paramType) ? qMetaTypeTypes.getName(paramType) : "unknown") + " ";
+		
+		int paramName = methodInfo.params().qtParametersIndex()[i];
+		signature += stringdata.getQtStringdata(paramName);
+		signature += ")";
+		
+		return signature;
 	}
 	
 	public Address getMethod(int index, Data qMetaObject) {

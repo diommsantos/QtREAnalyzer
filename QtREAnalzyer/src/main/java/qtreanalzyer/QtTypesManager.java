@@ -19,6 +19,7 @@ import ghidra.program.model.data.ArrayDataType;
 import ghidra.program.model.data.DataType;
 import ghidra.program.model.data.DataTypeConflictHandler;
 import ghidra.program.model.data.DataTypeManager;
+import ghidra.program.model.data.EnumDataType;
 import ghidra.program.model.data.StructureDataType;
 import ghidra.program.model.listing.Data;
 import ghidra.program.model.listing.GhidraClass;
@@ -36,7 +37,8 @@ public class QtTypesManager {
 		DataTypeManager dataTypeManager;
 		CParser parser;
 		
-		Map<String,DataType> types;
+		Map<String,DataType> composites;
+		Map<String,DataType> enums;
 	
 		public QtTypesManager(Program program) {
 			qtTypesManager = this;
@@ -47,7 +49,8 @@ public class QtTypesManager {
 			try {
 				InputStream qtTypesHeader = Files.newInputStream(Paths.get("src\\main\\java\\QtTypes\\QtTypes.h"));
 				parser.parse(qtTypesHeader);
-				types = parser.getComposites();
+				composites = parser.getComposites();
+				enums = parser.getEnums();
 			} catch (IOException | ParseException e) {
 				// TODO Auto-generated catch block
 				e.printStackTrace();
@@ -59,19 +62,23 @@ public class QtTypesManager {
 		}
 		
 		public DataType getQArrayData() {
-			return types.get("QArrayData");
+			return composites.get("QArrayData");
 		}
 		
 		public DataType getQByteArrayData() {
-			return types.get("QArrayData");
+			return composites.get("QArrayData");
 		}
 		
 		public DataType getSuperData() {
-			return types.get("SuperData");
+			return composites.get("SuperData");
 		}
 		
 		public DataType getQMetaObject() {
-			return types.get("QMetaObject");
+			return composites.get("QMetaObject");
+		}
+		
+		public EnumDataType getQMetaTypeTypes() {
+			return (EnumDataType) enums.get("Type");
 		}
 	
 }
