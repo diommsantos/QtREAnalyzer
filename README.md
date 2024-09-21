@@ -1,5 +1,16 @@
 # QtREAnalyzer
-QtREAnalyzer is a Ghidra Analyzer that analyzes binaries that use the Qt framework. It recovers Qt specific objects not recovered byt Ghidra. Work is in progress to recover function signatures and propertie names from the Qt metadata, see .
+
+QtREAnalyzer is a Ghidra Analyzer designed to reverse-engineer binaries that utilize the Qt framework. Its primary function is to recover Qt-specific object and method information, providing valuable insights into binary structures.
+
+# Features
+
+- Works on binaries without debug symbols.
+- Identifies and creates staticMetaObject objects created by  the Qt moc.
+- Identifies and creates qt_meta_stringdata objects created by the Qt moc.
+- Identifies and creates qt_meta_data objects created by the Qt moc.
+- Identifies and creates qt_static_metacall functions created by the Qt moc.
+- Annotates with comments the previously identified qt_static_metacall functions with the methods and propertie signatures recovered from the Qt meta data. 
+
 
 # Installation
 
