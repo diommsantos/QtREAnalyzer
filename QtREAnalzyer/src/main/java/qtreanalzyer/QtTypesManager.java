@@ -2,6 +2,8 @@ package qtreanalzyer;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.ArrayList;
@@ -47,11 +49,11 @@ public class QtTypesManager {
 			dataTypeManager = program.getDataTypeManager();
 			parser = new CParser(dataTypeManager);
 			try {
-				InputStream qtTypesHeader = Files.newInputStream(Paths.get("src\\main\\java\\QtTypes\\QtTypes.h"));
+				InputStream qtTypesHeader = QtTypesManager.class.getResourceAsStream("/QtTypes/QtTypes.h");
 				parser.parse(qtTypesHeader);
 				composites = parser.getComposites();
 				enums = parser.getEnums();
-			} catch (IOException | ParseException e) {
+			} catch (ParseException e) {
 				// TODO Auto-generated catch block
 				e.printStackTrace();
 			}
