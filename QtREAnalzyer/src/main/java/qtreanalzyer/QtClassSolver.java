@@ -44,6 +44,7 @@ import ghidra.program.model.util.CodeUnitInsertionException;
 import ghidra.util.exception.DuplicateNameException;
 import ghidra.util.exception.InvalidInputException;
 import qtreanalzyer.QtMetaDataData.QtMetaDataMethodInfo;
+import qtreanalzyer.QtMetaDataData.QtMetaDataPropertie;
 
 public class QtClassSolver {
 	
@@ -274,17 +275,26 @@ public class QtClassSolver {
 	}
 	
 	public void annotateQtStaticMetacall() {
-		if(qtClass.getQtStaticMetacall() == null)
+		if(qtClass.getQMetaObjectData() == null || qtClass.getQtStaticMetacall() == null)
 			return;
 		try {
 			int methodsCount = qtClass.getQtMetaDataData().getQtMethodsCount();
-			String comment = "Methods: " + getMethodSignature(0)+"\n";
-			for(int i = 1; i < methodsCount; i++) {
-				comment +=   "         " + getMethodSignature(i)+"\n";
+			String comment = "Methods:\n";
+			for(int i = 0; i < methodsCount; i++) {
+				comment +=  i + "- " + getMethodSignature(i) + "\n";
+			}
+			
+			comment += "\n";
+			
+			int propertiesCount = qtClass.getQtMetaDataData().getQtPropertiesCount();
+			comment += "Properties:\n";
+			for(int i = 0; i< propertiesCount; i++) {
+				comment +=  i + "- " + getPropertieSignature(i) + "\n";
 			}
 			
 			Address adress = qtClass.getQtStaticMetacall().getEntryPoint();
 			listing.setComment(adress, CodeUnit.PLATE_COMMENT, comment);
+			
 			return;
 		} catch (RuntimeException e) {
 			log.appendMsg("QtClassSolver: It was not possible to annotate qt_static_metacall"+
@@ -306,21 +316,30 @@ public class QtClassSolver {
 		signature += stringdata.getQtStringdata(methodName);
 		
 		signature += "(";
-		int i = 0;
-		for(; i < methodInfo.method().qtArgc()-1; i++) {
+		int numParams = methodInfo.method().qtArgc();
+		for(int i = 0; i < numParams; i++) {
 			int paramType = methodInfo.params().qtParameters()[i];
 			signature += (qMetaTypeTypes.contains(paramType) ? qMetaTypeTypes.getName(paramType) : "unknown") + " ";
 			
 			int paramName = methodInfo.params().qtParametersIndex()[i];
 			signature += stringdata.getQtStringdata(paramName)+", ";
 		}
+		signature = numParams > 0 ? signature.substring(0, signature.length()-2) + ")" : signature + ")";
 		
-		int paramType = methodInfo.params().qtParameters()[i];
-		signature += (qMetaTypeTypes.contains(paramType) ? qMetaTypeTypes.getName(paramType) : "unknown") + " ";
+		return signature;
+	}
+	
+	private String getPropertieSignature(int index) {
+		QtMetaDataPropertie propertie = qtClass.getQtMetaDataData().getQtMetaDataPropertie(index);
+		QtMetaStringdataData stringdata = qtClass.getQtMetaStringdataData();
 		
-		int paramName = methodInfo.params().qtParametersIndex()[i];
-		signature += stringdata.getQtStringdata(paramName);
-		signature += ")";
+		String signature = "";
+		
+		int propertieType = propertie.qtType();
+		signature += (qMetaTypeTypes.contains(propertieType) ? qMetaTypeTypes.getName(propertieType) : "unknown") + " ";
+		
+		int propertieName = propertie.qtName();
+		signature += stringdata.getQtStringdata(propertieName);
 		
 		return signature;
 	}
