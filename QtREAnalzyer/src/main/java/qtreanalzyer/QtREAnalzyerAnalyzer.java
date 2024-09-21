@@ -74,8 +74,8 @@ public class QtREAnalzyerAnalyzer extends AbstractAnalyzer {
 
 		// TODO: If this analyzer has custom options, register them here
 
-		options.registerOption("Option name goes here", false, null,
-			"Option description goes here");
+		//options.registerOption("Option name goes here", false, null,
+		//	"Option description goes here");
 	}
 	
 	@Override
