@@ -246,8 +246,10 @@ public class QtClassSolver {
 			Address adress = qtClass.getQMetaObjectData().getQtStatic_metacall();
 			Function qtStaticMetacall = functionManager.getFunctionAt(adress);
 			
-			qtStaticMetacall.setName("qt_static_metacall", SourceType.ANALYSIS);
-			qtStaticMetacall.setParentNamespace(qtClass);
+			if(!qtStaticMetacall.getName().equals("qt_static_metacall"))
+				qtStaticMetacall.setName("qt_static_metacall", SourceType.ANALYSIS);
+			if(!(qtStaticMetacall.getParentNamespace().getID() == qtClass.getID()))
+				qtStaticMetacall.setParentNamespace(qtClass);
 			
 			qtStaticMetacall.setCallingConvention("__fastcall");
 			
@@ -348,7 +350,7 @@ public class QtClassSolver {
 		if(qMetaTypeTypes.contains(type))
 			return qMetaTypeTypes.getName(type);
 		if((type & 0x80000000) == 0x80000000)
-			return qtClass.getQtMetaStringdataData().getQtStringdata(type - 0x80000000);
+			return qtClass.getQtMetaStringdataData().getQtStringdata(type ^ 0x80000000);
 		return "unknown";
 	}
 	
