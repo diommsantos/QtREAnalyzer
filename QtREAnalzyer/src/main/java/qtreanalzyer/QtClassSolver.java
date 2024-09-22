@@ -310,7 +310,7 @@ public class QtClassSolver {
 		String signature = "";
 		
 		int returnType = methodInfo.params().qtReturn(); 
-		signature += (qMetaTypeTypes.contains(returnType) ? qMetaTypeTypes.getName(returnType) : "unknown") + " ";
+		signature += getQtMetaDataType(returnType) + " ";
 		
 		int methodName = methodInfo.method().qtName();
 		signature += stringdata.getQtStringdata(methodName);
@@ -319,7 +319,7 @@ public class QtClassSolver {
 		int numParams = methodInfo.method().qtArgc();
 		for(int i = 0; i < numParams; i++) {
 			int paramType = methodInfo.params().qtParameters()[i];
-			signature += (qMetaTypeTypes.contains(paramType) ? qMetaTypeTypes.getName(paramType) : "unknown") + " ";
+			signature += getQtMetaDataType(paramType) + " ";
 			
 			int paramName = methodInfo.params().qtParametersIndex()[i];
 			signature += stringdata.getQtStringdata(paramName)+", ";
@@ -336,12 +336,20 @@ public class QtClassSolver {
 		String signature = "";
 		
 		int propertieType = propertie.qtType();
-		signature += (qMetaTypeTypes.contains(propertieType) ? qMetaTypeTypes.getName(propertieType) : "unknown") + " ";
+		signature += getQtMetaDataType(propertieType) + " ";
 		
 		int propertieName = propertie.qtName();
 		signature += stringdata.getQtStringdata(propertieName);
 		
 		return signature;
+	}
+	
+	private String getQtMetaDataType(int type) {
+		if(qMetaTypeTypes.contains(type))
+			return qMetaTypeTypes.getName(type);
+		if((type & 0x80000000) == 0x80000000)
+			return qtClass.getQtMetaStringdataData().getQtStringdata(type - 0x80000000);
+		return "unknown";
 	}
 	
 	public Address getMethod(int index, Data qMetaObject) {
