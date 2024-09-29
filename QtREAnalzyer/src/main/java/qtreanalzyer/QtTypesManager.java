@@ -1,6 +1,9 @@
 package qtreanalzyer;
 
 import java.io.InputStream;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 import java.util.Map;
 import ghidra.app.util.cparser.C.CParser;
 import ghidra.app.util.cparser.C.ParseException;
@@ -150,6 +153,39 @@ public class QtTypesManager {
 		public Structure newStruct(String name) {
 			Structure struct = new StructureDataType(qtClassPath, name, 0, dataTypeManager);
 			return (Structure) dataTypeManager.addDataType(struct, DataTypeConflictHandler.REPLACE_HANDLER);
+		}
+		
+		public boolean isQtType(DataType dataType) {
+			if(dataType.getCategoryPath().isAncestorOrSelf(QT_ROOT))
+				return true;
+			return false;
+		}
+		
+		public DataType findOrCreateQtType(String dataTypeName, boolean caseSensitive) {
+			List<DataType> types = new ArrayList<DataType>();
+			dataTypeManager.findDataTypes(dataTypeName, types, caseSensitive, null);
+			
+			for(DataType dt : types) {
+				if(qtTypesManager.isQtType(dt) && dt.getName().equals(dataTypeName)) {
+					return dt;
+				}	
+			}
+			
+			if(types.size() > 0)
+				return types.get(0);
+			
+			String[] dataTypePath = dataTypeName.split("::");
+			Structure dataType = new StructureDataType(dataTypePath[dataTypePath.length-1], 0, dataTypeManager);
+			try {
+				if(dataTypePath.length > 1)
+					dataType.setCategoryPath(new CategoryPath(QT_ROOT, Arrays.copyOfRange(dataTypePath, 0, dataTypePath.length-1)));
+				else
+					dataType.setCategoryPath(QT_ROOT);
+				return dataTypeManager.addDataType(dataType, DataTypeConflictHandler.REPLACE_HANDLER);
+			} catch (DuplicateNameException e) {
+				return null;
+			}
+			
 		}
 	
 }

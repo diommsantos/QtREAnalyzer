@@ -371,7 +371,7 @@ public class QtClassSolver {
 			try {
 				Address slotAddress = solveSlotAddress(i);
 				solveQtMethod(slotAddress, i);
-			} catch (RuntimeException | MemoryAccessException | InvalidInputException | DuplicateNameException | CircularDependencyException e) {
+			} catch (RuntimeException | MemoryAccessException | InvalidInputException e) {
 				log.appendMsg("QtClassSolver: It was not possible to solve the method with index "+i+
 						" for the " + qtClass.getName() + " class.");
 			}
@@ -457,29 +457,34 @@ public class QtClassSolver {
 		
 	}
 	
-	private Function solveQtMethod(Address methodAddress, int index) throws InvalidInputException, DuplicateNameException, CircularDependencyException {
+	private Function solveQtMethod(Address methodAddress, int index) throws InvalidInputException {
 		Function method = functionManager.getFunctionAt(methodAddress);
 		
 		QtMetaDataMethodInfo methodInfo = qtClass.getQtMetaDataData().getQtMetaDataMethodInfo(index);
 		QtMetaStringdataData stringdata = qtClass.getQtMetaStringdataData();
-		
-		method.setName(stringdata.getQtStringdata(methodInfo.method().qtName()), SourceType.ANALYSIS);
-		method.setParentNamespace(qtClass);
-		
+				
 		method.setCallingConvention("__thiscall");
 		
 		DataType returnType = getQtMetaDataType(methodInfo.params().qtReturn());
 		method.setReturnType(returnType, SourceType.ANALYSIS);
 		
 		List<ParameterImpl> params = new ArrayList<ParameterImpl>();
+		DataType thisType = new PointerDataType(qtTypesManager.newStruct(qtClass.getName()));
+		params.add(new ParameterImpl("this", thisType, program, SourceType.ANALYSIS));
 		for(int i = 0; i < methodInfo.method().qtArgc(); i++) {
 			DataType paramType = getQtMetaDataType(methodInfo.params().qtParameters()[i]);
 			String name = stringdata.getQtStringdata(methodInfo.params().qtParametersIndex()[i]);
-			name = name == "" ? "param_"+i : name;
+			name = name.equals("") ? "param_"+i : name;
 			params.add(new ParameterImpl(name, paramType, program, SourceType.ANALYSIS));
 		}
 		
-		method.replaceParameters(params, FunctionUpdateType.DYNAMIC_STORAGE_ALL_PARAMS, true, SourceType.ANALYSIS);
+		try {
+			method.replaceParameters(params, FunctionUpdateType.DYNAMIC_STORAGE_ALL_PARAMS, true, SourceType.ANALYSIS);
+			method.setName(stringdata.getQtStringdata(methodInfo.method().qtName()), SourceType.ANALYSIS);
+			method.setParentNamespace(qtClass);
+		} catch(DuplicateNameException | CircularDependencyException e) {
+			//If we reach here then we assume the name and the namespace were already set
+		}
 		
 		return method;
 	}
@@ -496,9 +501,7 @@ public class QtClassSolver {
 			typeString = typeString.substring(0, typeString.length()-1);
 		}
 		
-		List<DataType> types = new ArrayList<DataType>();
-		dataTypeManager.findDataTypes(typeString, types, false, null);
-		DataType dataType = types.size() == 0 ? null : types.get(0);
+		DataType dataType = qtTypesManager.findOrCreateQtType(typeString, false);
 		if(dataType == null)
 			return null;
 		
