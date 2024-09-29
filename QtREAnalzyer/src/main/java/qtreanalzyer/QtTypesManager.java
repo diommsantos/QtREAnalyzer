@@ -123,7 +123,7 @@ public class QtTypesManager {
 		}
 		
 		public static QtTypesManager getQtTypesManager(QtClass qtClass) {
-			qtClassPath = QT_ROOT.extend(qtClass.getName());
+			qtClassPath = QT_ROOT.extend(qtClass.getName(true).split("::"));
 			return qtTypesManager;
 		}
 		
