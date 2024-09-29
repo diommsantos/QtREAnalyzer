@@ -1,24 +1,30 @@
 package qtreanalzyer;
 
 import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
+import java.util.Set;
 
 import ghidra.app.plugin.processors.sleigh.SleighLanguage;
 import ghidra.app.util.importer.MessageLog;
 import ghidra.pcode.emu.PcodeEmulator;
 import ghidra.pcode.emu.PcodeThread;
 import ghidra.pcode.exec.PcodeExecutorState;
+import ghidra.pcode.exec.PcodeFrame;
 import ghidra.pcode.exec.PcodeProgram;
 import ghidra.pcode.exec.PcodeUseropLibrary;
 import ghidra.pcode.exec.SleighProgramCompiler;
 import ghidra.program.model.address.Address;
 import ghidra.program.model.address.AddressOutOfBoundsException;
+import ghidra.program.model.address.AddressSetView;
 import ghidra.program.model.data.ArrayDataType;
 import ghidra.program.model.data.DataType;
 import ghidra.program.model.data.DataTypeConflictHandler;
 import ghidra.program.model.data.DataTypeManager;
 import ghidra.program.model.data.EnumDataType;
 import ghidra.program.model.data.PointerDataType;
+import ghidra.program.model.data.Structure;
 import ghidra.program.model.data.StructureDataType;
 import ghidra.program.model.listing.CircularDependencyException;
 import ghidra.program.model.listing.CodeUnit;
@@ -36,6 +42,7 @@ import ghidra.program.model.listing.Function.FunctionUpdateType;
 import ghidra.program.model.mem.Memory;
 import ghidra.program.model.mem.MemoryAccessException;
 import ghidra.program.model.pcode.PcodeOp;
+import ghidra.program.model.pcode.Varnode;
 import ghidra.program.model.symbol.Reference;
 import ghidra.program.model.symbol.SourceType;
 import ghidra.program.model.symbol.Symbol;
@@ -69,7 +76,7 @@ public class QtClassSolver {
 		this.symbolTable = program.getSymbolTable();
 		this.functionManager = program.getFunctionManager();
 		this.dataTypeManager = program.getDataTypeManager();
-		this.qtTypesManager = QtTypesManager.getQtTypesManager();
+		this.qtTypesManager = QtTypesManager.getQtTypesManager(qtClass);
 		this.qMetaTypeTypes = qtTypesManager.getQMetaTypeTypes();
 	}
 	
@@ -140,12 +147,12 @@ public class QtClassSolver {
 		DataType qByteArrayData = qtTypesManager.getQByteArrayData();
 		int numDataEntries = (int) stringdata0Index / qByteArrayData.getAlignedLength();
 		
-		StructureDataType qtMetaStringdata = new StructureDataType("qt_meta_stringdata_"+qtClass.getName()+"_t", 0, dataTypeManager);
+		Structure qtMetaStringdata = qtTypesManager.newStruct("qt_meta_stringdata_"+qtClass.getName()+"_t");
 		
 		ArrayDataType data = new ArrayDataType(qByteArrayData, numDataEntries);
 		
 		DataType charType = dataTypeManager.getDataType("/char");
-		StructureDataType stringdata = new StructureDataType("stringdata", 0);
+		Structure stringdata = qtTypesManager.newStruct("stringdata");
 		for(int i = 0; i < numDataEntries; i++) {
 			int stringdataiLenght = memory.getInt(qtMetaStringdataAddress.add(qByteArrayData.getAlignedLength() * i + intLenght * 1));
 			stringdata.add(new ArrayDataType(charType, stringdataiLenght+1), "stringdata"+i, null);
@@ -178,23 +185,23 @@ public class QtClassSolver {
 	public DataType getQtMetaData(Address qtMetaDataAddress) throws MemoryAccessException, AddressOutOfBoundsException {
 		DataType intDataType = dataTypeManager.getDataType("/int");
 		int intLenght = intDataType.getLength();
-		StructureDataType qtMetaDataType = new StructureDataType("qt_meta_data_"+qtClass.getName(), 0, dataTypeManager);
+		Structure qtMetaDataType = qtTypesManager.newStruct("qt_meta_data_"+qtClass.getName());
 		qtMetaDataType.add(intDataType, "revision", null);
 		qtMetaDataType.add(intDataType, "classname", null);
 		qtMetaDataType.add(intDataType, "classinfo_count", null);qtMetaDataType.add(intDataType, "classinfo_index", null);
 		qtMetaDataType.add(intDataType, "methods_count", null);qtMetaDataType.add(intDataType, "mehtods_index", null);
 		qtMetaDataType.add(intDataType, "properties_count", null);qtMetaDataType.add(intDataType, "properties_index", null);
 		qtMetaDataType.add(intDataType, "enum_sets_count", null);qtMetaDataType.add(intDataType, "enums_sets_index", null);
-		//qtMetaDataType.add(intDataType, "constructors_count", null);qtMetaDataType.add(intDataType, "constructors_index", null);
-		//qtMetaDataType.add(intDataType, "flags", null);
-		//qtMetaDataType.add(intDataType, "signalCount", null);
+		qtMetaDataType.add(intDataType, "constructors_count", null);qtMetaDataType.add(intDataType, "constructors_index", null);
+		qtMetaDataType.add(intDataType, "flags", null);
+		qtMetaDataType.add(intDataType, "signalCount", null);
 		
 		int methodsCount = memory.getInt(qtMetaDataAddress.add(intLenght * 4));
 		int methodsIndex = memory.getInt(qtMetaDataAddress.add(intLenght * 5));
 		int propertiesCount = memory.getInt(qtMetaDataAddress.add(intLenght * 6));
 		int propertiesIndex = memory.getInt(qtMetaDataAddress.add(intLenght * 7));
 		
-		StructureDataType qtMetaDataMethodDT = new StructureDataType("qt_meta_data_method", 0);
+		Structure qtMetaDataMethodDT = qtTypesManager.newStruct("qt_meta_data_method");
 		qtMetaDataMethodDT.add(intDataType, "name", null);
 		qtMetaDataMethodDT.add(intDataType, "argc", null);
 		qtMetaDataMethodDT.add(intDataType, "parameters", null);
@@ -206,7 +213,7 @@ public class QtClassSolver {
 				new ArrayDataType(qtMetaDataMethodDT, methodsCount), 0);
 		
 		//constructs the method parameters
-		StructureDataType qtMetaDataParamsDT = new StructureDataType("qt_meta_data_parameters", 0);
+		Structure qtMetaDataParamsDT = qtTypesManager.newStruct("qt_meta_data_parameters");
 		int parameters0 = memory.getInt(qtMetaDataAddress.add(intLenght*(methodsIndex+2)));
 		for(int i = 0; i < methodsCount; i++) {
 			int argc = memory.getInt(qtMetaDataAddress.add(intLenght*(methodsIndex+1+i*5)));
@@ -214,7 +221,7 @@ public class QtClassSolver {
 			int relativeIndex = parameters-parameters0;
 			
 			//construct qt_meta_data_parameters DataType
-			StructureDataType qtMetaDataParamDT = new StructureDataType("qt_meta_data_parameters"+i, 0);
+			Structure qtMetaDataParamDT = qtTypesManager.newStruct("qt_meta_data_parameters"+i);
 			qtMetaDataParamDT.add(intDataType, "return", null);
 			for(int j = 0; j < argc; j++)
 				qtMetaDataParamDT.add(intDataType, "parameter"+j, null);
@@ -228,7 +235,7 @@ public class QtClassSolver {
 		if(methodsCount > 0)
 			qtMetaDataType.insertAtOffset(intLenght * parameters0, qtMetaDataParamsDT, 0);
 		
-		StructureDataType qtMetaDataPropsDT = new StructureDataType("qt_meta_data_properties",0);
+		Structure qtMetaDataPropsDT = qtTypesManager.newStruct("qt_meta_data_properties");
 		qtMetaDataPropsDT.add(intDataType, "name", null);
 		qtMetaDataPropsDT.add(intDataType, "type", null);
 		qtMetaDataPropsDT.add(intDataType, "flags", null);
@@ -312,7 +319,7 @@ public class QtClassSolver {
 		String signature = "";
 		
 		int returnType = methodInfo.params().qtReturn(); 
-		signature += getQtMetaDataType(returnType) + " ";
+		signature += getQtMetaDataTypeString(returnType) + " ";
 		
 		int methodName = methodInfo.method().qtName();
 		signature += stringdata.getQtStringdata(methodName);
@@ -321,7 +328,7 @@ public class QtClassSolver {
 		int numParams = methodInfo.method().qtArgc();
 		for(int i = 0; i < numParams; i++) {
 			int paramType = methodInfo.params().qtParameters()[i];
-			signature += getQtMetaDataType(paramType) + " ";
+			signature += getQtMetaDataTypeString(paramType) + " ";
 			
 			int paramName = methodInfo.params().qtParametersIndex()[i];
 			signature += stringdata.getQtStringdata(paramName)+", ";
@@ -338,7 +345,7 @@ public class QtClassSolver {
 		String signature = "";
 		
 		int propertieType = propertie.qtType();
-		signature += getQtMetaDataType(propertieType) + " ";
+		signature += getQtMetaDataTypeString(propertieType) + " ";
 		
 		int propertieName = propertie.qtName();
 		signature += stringdata.getQtStringdata(propertieName);
@@ -346,12 +353,160 @@ public class QtClassSolver {
 		return signature;
 	}
 	
-	private String getQtMetaDataType(int type) {
+	private String getQtMetaDataTypeString(int type) {
 		if(qMetaTypeTypes.contains(type))
 			return qMetaTypeTypes.getName(type);
 		if((type & 0x80000000) == 0x80000000)
 			return qtClass.getQtMetaStringdataData().getQtStringdata(type ^ 0x80000000);
 		return "unknown";
+	}
+	
+	public Function[] solveQtMethods() {
+		if(qtClass.getQMetaObjectData() == null || qtClass.getQtStaticMetacall() == null)
+			return null;
+		
+		Set<Address> possibleQtMethodsAddr = getPossibleQtMethodsAddresses();
+		QtMetaDataData qtData = qtClass.getQtMetaDataData();
+		for(int i = qtData.getQtSingalCount(); i < qtData.getQtMethodsCount(); i++)
+			try {
+				Address slotAddress = solveSlotAddress(i);
+				solveQtMethod(slotAddress, i);
+			} catch (RuntimeException | MemoryAccessException | InvalidInputException | DuplicateNameException | CircularDependencyException e) {
+				log.appendMsg("QtClassSolver: It was not possible to solve the method with index "+i+
+						" for the " + qtClass.getName() + " class.");
+			}
+		Function[] methods = new Function[qtClass.getQtMetaDataData().getQtMethodsCount()];
+		return methods;
+	}
+	
+	private Set<Address> getPossibleQtMethodsAddresses() {
+		Function qtStaticMetacall = qtClass.getQtStaticMetacall();
+		InstructionIterator instructions = listing.getInstructions(qtStaticMetacall.getBody(), true);
+		Set<Address> possibleQtMethodsAddr = new HashSet<Address>();
+		while(instructions.hasNext()) {
+			Instruction instruction = instructions.next();
+			PcodeOp[] iPcode = instruction.getPcode();
+			for(int i = 0; i < iPcode.length; i++) {
+				if(!iPcode[i].getMnemonic().equals("CALL") && 
+				   !iPcode[i].getMnemonic().equals("COPY") &&
+				   !iPcode[i].getMnemonic().equals("BRANCH"))
+					continue;
+				Address possibleAddress = iPcode[i].getInput(0).getAddress();
+				if(!possibleAddress.getAddressSpace().isMemorySpace())
+					continue;
+				if(qtStaticMetacall.getBody().contains(possibleAddress))
+					continue;
+				if(isExternalObjectAddress(possibleAddress))
+					continue;
+				possibleQtMethodsAddr.add(possibleAddress);
+			}
+		}
+		return possibleQtMethodsAddr;
+	}
+	
+	private boolean isExternalObjectAddress(Address possibleAddress) {
+		Reference[] references = program.getReferenceManager().getReferencesFrom(possibleAddress);
+		for(Reference reference : references) {
+			if(reference.isExternalReference())
+				return true;
+		}
+		return false;
+	}
+	
+	private Address solveSlotAddress(int index) throws MemoryAccessException {
+		Function qtStaticMetacall = qtClass.getQtStaticMetacall();
+		AddressSetView metacallBody = qtStaticMetacall.getBody();
+		
+		PcodeEmulator emulator = new PcodeEmulator(program.getLanguage());
+		PcodeThread<byte[]> pCodeThread = emulator.newThread("qt_static_metacall");
+		PcodeExecutorState<byte[]> state = emulator.getSharedState();
+
+		byte[] metacallBytes = new byte[(int) (metacallBody.getNumAddresses())+200*8];
+		memory.getBytes(metacallBody.getMinAddress(), metacallBytes);
+		state.setVar(qtStaticMetacall.getEntryPoint(), metacallBytes.length, true, metacallBytes);
+		
+		pCodeThread.getExecutor().executeSleigh(String.format("""
+				RIP = 0x%s;
+				RSP = 0x00001000;
+				
+				RCX = 0;
+				EDX = 0;
+				R8D = %d;
+				""", qtStaticMetacall.getEntryPoint(), index));
+		pCodeThread.overrideContextWithDefault();
+		pCodeThread.reInitialize();
+		
+		while(true) {
+			pCodeThread.stepPcodeOp();
+			
+			PcodeFrame frame = pCodeThread.getFrame();
+			if(frame == null)
+				continue;
+			List<PcodeOp> code = frame.getCode();
+			if(frame.index() == code.size() || frame.index() == -1 )
+				continue;
+			PcodeOp nextPcodeOp = listing.getInstructionAt(pCodeThread.getInstruction().getAddress()).getPcode(true)[frame.index()];
+			if(nextPcodeOp.getMnemonic().equals("CALLIND"))
+				pCodeThread.skipPcodeOp();
+			if(nextPcodeOp.getMnemonic().equals("RET"))
+				return null;
+			if(nextPcodeOp.getMnemonic().equals("CALL"))
+				return nextPcodeOp.getInput(0).getAddress();
+		}	
+		
+		
+	}
+	
+	private Function solveQtMethod(Address methodAddress, int index) throws InvalidInputException, DuplicateNameException, CircularDependencyException {
+		Function method = functionManager.getFunctionAt(methodAddress);
+		
+		QtMetaDataMethodInfo methodInfo = qtClass.getQtMetaDataData().getQtMetaDataMethodInfo(index);
+		QtMetaStringdataData stringdata = qtClass.getQtMetaStringdataData();
+		
+		method.setName(stringdata.getQtStringdata(methodInfo.method().qtName()), SourceType.ANALYSIS);
+		method.setParentNamespace(qtClass);
+		
+		method.setCallingConvention("__thiscall");
+		
+		DataType returnType = getQtMetaDataType(methodInfo.params().qtReturn());
+		method.setReturnType(returnType, SourceType.ANALYSIS);
+		
+		List<ParameterImpl> params = new ArrayList<ParameterImpl>();
+		for(int i = 0; i < methodInfo.method().qtArgc(); i++) {
+			DataType paramType = getQtMetaDataType(methodInfo.params().qtParameters()[i]);
+			String name = stringdata.getQtStringdata(methodInfo.params().qtParametersIndex()[i]);
+			name = name == "" ? "param_"+i : name;
+			params.add(new ParameterImpl(name, paramType, program, SourceType.ANALYSIS));
+		}
+		
+		method.replaceParameters(params, FunctionUpdateType.DYNAMIC_STORAGE_ALL_PARAMS, true, SourceType.ANALYSIS);
+		
+		return method;
+	}
+	
+	private DataType getQtMetaDataType(int type) {
+		String typeString = getQtMetaDataTypeString(type);
+		if(typeString.endsWith("Star")) {
+			typeString = typeString.split("Star")[0]+"*";
+		}
+		
+		int pointerDepth = 0;
+		while(typeString.endsWith("*")) {
+			pointerDepth++;
+			typeString = typeString.substring(0, typeString.length()-1);
+		}
+		
+		List<DataType> types = new ArrayList<DataType>();
+		dataTypeManager.findDataTypes(typeString, types, false, null);
+		DataType dataType = types.size() == 0 ? null : types.get(0);
+		if(dataType == null)
+			return null;
+		
+		for(int i = 0; i < pointerDepth; i++) {
+			dataType = new PointerDataType(dataType, dataTypeManager);
+		}
+		
+		return dataType;
 	}
 	
 	public Address getMethod(int index, Data qMetaObject) {

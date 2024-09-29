@@ -68,6 +68,8 @@ public class QtClass extends RttiClass{
 		
 		qtClassSolver.annotateQtStaticMetacall();
 		
+		qtClassSolver.solveQtMethods();
+		
 	}
 	
 	public QMetaObjectData getQMetaObjectData() {
@@ -242,7 +244,10 @@ class QtMetaDataData extends QtData {
 		qtClassinfo_count,  qtClassinfo_index,
 		qtMethods_count,    qtMethods_index,
 		qtProperties_count, qtProperties_index,
-		qtEnum_sets_count,  qtEnum_sets_index;
+		qtEnum_sets_count,  qtEnum_sets_index,
+		qtConstructors_count, qtConstructors_index,
+		qtFlags,
+		qtSignalCount;
 	
 	record QtMetaDataMethod(
 		int qtName,
@@ -286,6 +291,12 @@ class QtMetaDataData extends QtData {
 		
 		qtEnum_sets_count  = (int) ((Scalar) data.getComponent(8).getValue()).getValue();  
 		qtEnum_sets_index  = (int) ((Scalar) data.getComponent(9).getValue()).getValue();
+		
+		qtConstructors_count  = (int) ((Scalar) data.getComponent(10).getValue()).getValue();  
+		qtConstructors_index  = (int) ((Scalar) data.getComponent(11).getValue()).getValue();
+		
+		qtFlags            = (int) ((Scalar) data.getComponent(12).getValue()).getValue();  
+		qtSignalCount      = (int) ((Scalar) data.getComponent(13).getValue()).getValue();
 		
 		qtMetaDataMethods = new QtMetaDataMethod[qtMethods_count];
 		qtMetaDataParameters = new QtMetaDataParameters[qtMethods_count];
@@ -337,6 +348,10 @@ class QtMetaDataData extends QtData {
 	
 	public int getQtPropertiesCount() {
 		return qtProperties_count;
+	}
+	
+	public int getQtSingalCount() {
+		return qtSignalCount;
 	}
 	
 	public QtMetaDataMethodInfo getQtMetaDataMethodInfo(int index) {
