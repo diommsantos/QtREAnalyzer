@@ -4,13 +4,17 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 import ghidra.app.plugin.processors.sleigh.SleighLanguage;
 import ghidra.app.util.importer.MessageLog;
 import ghidra.pcode.emu.PcodeEmulator;
 import ghidra.pcode.emu.PcodeThread;
+import ghidra.pcode.exec.PcodeArithmetic;
+import ghidra.pcode.exec.PcodeArithmetic.Purpose;
 import ghidra.pcode.exec.PcodeExecutorState;
+import ghidra.pcode.exec.PcodeExecutorStatePiece.Reason;
 import ghidra.pcode.exec.PcodeFrame;
 import ghidra.pcode.exec.PcodeProgram;
 import ghidra.pcode.exec.PcodeUseropLibrary;
@@ -18,6 +22,7 @@ import ghidra.pcode.exec.SleighProgramCompiler;
 import ghidra.program.model.address.Address;
 import ghidra.program.model.address.AddressOutOfBoundsException;
 import ghidra.program.model.address.AddressSetView;
+import ghidra.program.model.address.AddressSpace;
 import ghidra.program.model.data.ArrayDataType;
 import ghidra.program.model.data.DataType;
 import ghidra.program.model.data.DataTypeConflictHandler;
@@ -26,6 +31,7 @@ import ghidra.program.model.data.EnumDataType;
 import ghidra.program.model.data.PointerDataType;
 import ghidra.program.model.data.Structure;
 import ghidra.program.model.data.StructureDataType;
+import ghidra.program.model.lang.Register;
 import ghidra.program.model.listing.CircularDependencyException;
 import ghidra.program.model.listing.CodeUnit;
 import ghidra.program.model.listing.Data;
@@ -365,17 +371,41 @@ public class QtClassSolver {
 		if(qtClass.getQMetaObjectData() == null || qtClass.getQtStaticMetacall() == null)
 			return null;
 		
-		Set<Address> possibleQtMethodsAddr = getPossibleQtMethodsAddresses();
 		QtMetaDataData qtData = qtClass.getQtMetaDataData();
+		Function[] methods = new Function[qtClass.getQtMetaDataData().getQtMethodsCount()];
+		
+		Set<Address> possibleQtMethodsAddr = getPossibleQtMethodsAddresses();
+
 		for(int i = qtData.getQtSingalCount(); i < qtData.getQtMethodsCount(); i++)
 			try {
 				Address slotAddress = solveSlotAddress(i);
-				solveQtMethod(slotAddress, i);
+				possibleQtMethodsAddr.remove(slotAddress);
+				methods[i] = solveQtMethod(slotAddress, i);
 			} catch (RuntimeException | MemoryAccessException | InvalidInputException e) {
 				log.appendMsg("QtClassSolver: It was not possible to solve the method with index "+i+
 						" for the " + qtClass.getName() + " class.");
 			}
-		Function[] methods = new Function[qtClass.getQtMetaDataData().getQtMethodsCount()];
+		
+		int signalsLeft = qtData.getQtMethodsCount() - qtData.getQtSingalCount();
+		for(Address possibleAdress : possibleQtMethodsAddr)
+			try {
+				if(signalsLeft == 0)
+					break;
+				Integer singalIndex = solveSignalIndex(possibleAdress);
+				if(singalIndex == null)
+					continue;
+				methods[singalIndex] = solveQtMethod(possibleAdress, singalIndex);
+				signalsLeft--;
+			} catch (RuntimeException | InvalidInputException | MemoryAccessException e) {
+				//logging will be done after
+			}
+		
+		//log the signal methods that coudn't be solved
+		for(int i = 0; i < qtData.getQtSingalCount(); i++)
+			if(methods[i] == null)
+				log.appendMsg("QtClassSolver: It was not possible to solve the method with index "+i+
+					" for the " + qtClass.getName() + " class.");
+
 		return methods;
 	}
 	
@@ -446,15 +476,66 @@ public class QtClassSolver {
 			if(frame.index() == code.size() || frame.index() == -1 )
 				continue;
 			PcodeOp nextPcodeOp = listing.getInstructionAt(pCodeThread.getInstruction().getAddress()).getPcode(true)[frame.index()];
-			if(nextPcodeOp.getMnemonic().equals("CALLIND"))
+			if(nextPcodeOp.getOpcode() == PcodeOp.CALLIND)
 				pCodeThread.skipPcodeOp();
-			if(nextPcodeOp.getMnemonic().equals("RET"))
+			if(nextPcodeOp.getOpcode() == PcodeOp.RETURN)
 				return null;
-			if(nextPcodeOp.getMnemonic().equals("CALL"))
+			if(nextPcodeOp.getOpcode() == PcodeOp.CALL)
 				return nextPcodeOp.getInput(0).getAddress();
 		}	
+	}
+	
+	private int solveSignalIndex(Address address) throws MemoryAccessException {
+		Function qtStaticMetacall = qtClass.getQtStaticMetacall();
+		AddressSetView metacallBody = qtStaticMetacall.getBody();
 		
+		PcodeEmulator emulator = new PcodeEmulator(program.getLanguage());
+		PcodeThread<byte[]> pCodeThread = emulator.newThread("qt_static_metacall");
+		PcodeExecutorState<byte[]> state = emulator.getSharedState();
+		PcodeArithmetic<byte[]> arithmetic = emulator.getArithmetic();
+
+		byte[] metacallBytes = new byte[(int) (metacallBody.getNumAddresses())+200*8];
+		memory.getBytes(metacallBody.getMinAddress(), metacallBytes);
+		state.setVar(qtStaticMetacall.getEntryPoint(), metacallBytes.length, true, metacallBytes);
 		
+		AddressSpace addrSpace = address.getAddressSpace();
+		int pSize = addrSpace.getPointerSize();
+		
+		state.setVar(addrSpace, 0x10000, pSize, true, arithmetic.fromConst(0x8000, pSize));
+		state.setVar(addrSpace, 0x8000, 4, true, arithmetic.fromConst(0xffffffff, 4));
+		
+		state.setVar(addrSpace, 0x10000 + pSize, pSize, true, arithmetic.fromConst(0x5000, pSize));
+		state.setVar(addrSpace, 0x5000, pSize, true, arithmetic.fromConst(address.getOffset(), pSize));
+		
+		pCodeThread.getExecutor().executeSleigh(String.format("""
+				RIP = 0x%s;
+				RSP = 0x00001000;
+				
+				RCX = 0;
+				EDX = 10;
+				R9 = 0x000010000;
+				""", qtStaticMetacall.getEntryPoint()));
+		pCodeThread.overrideContextWithDefault();
+		pCodeThread.reInitialize();
+		
+		Map<Register, byte[]> regs = pCodeThread.getState().getRegisterValues();
+		
+		while(true) {
+			pCodeThread.stepPcodeOp();
+			PcodeFrame frame = pCodeThread.getFrame();
+			if(frame == null)
+				continue;
+			List<PcodeOp> code = frame.getCode();
+			if(frame.index() == code.size() || frame.index() == -1 )
+				continue;
+			PcodeOp nextPcodeOp = listing.getInstructionAt(pCodeThread.getInstruction().getAddress()).getPcode(true)[frame.index()];
+			if(nextPcodeOp.getOpcode() == PcodeOp.CALLIND)
+				pCodeThread.skipPcodeOp();
+			if(nextPcodeOp.getOpcode() == PcodeOp.RETURN) {
+				byte[] indexBytes = state.getVar(addrSpace, 0x8000, 4, true, Reason.INSPECT);
+				return arithmetic.toBigInteger(indexBytes, Purpose.INSPECT).intValueExact();
+			}
+		}
 	}
 	
 	private Function solveQtMethod(Address methodAddress, int index) throws InvalidInputException {
