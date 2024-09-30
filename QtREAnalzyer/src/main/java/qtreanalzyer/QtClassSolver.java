@@ -386,13 +386,13 @@ public class QtClassSolver {
 						" for the " + qtClass.getName() + " class.");
 			}
 		
-		int signalsLeft = qtData.getQtMethodsCount() - qtData.getQtSingalCount();
+		int signalsLeft = qtData.getQtSingalCount();
 		for(Address possibleAdress : possibleQtMethodsAddr)
 			try {
 				if(signalsLeft == 0)
 					break;
-				Integer singalIndex = solveSignalIndex(possibleAdress);
-				if(singalIndex == null)
+				int singalIndex = solveSignalIndex(possibleAdress);
+				if(singalIndex == -1)
 					continue;
 				methods[singalIndex] = solveQtMethod(possibleAdress, singalIndex);
 				signalsLeft--;
@@ -422,7 +422,8 @@ public class QtClassSolver {
 				   !iPcode[i].getMnemonic().equals("BRANCH"))
 					continue;
 				Address possibleAddress = iPcode[i].getInput(0).getAddress();
-				if(!possibleAddress.getAddressSpace().isMemorySpace())
+				if(!possibleAddress.getAddressSpace().isMemorySpace() &&
+				   !possibleAddress.getAddressSpace().isConstantSpace())
 					continue;
 				if(qtStaticMetacall.getBody().contains(possibleAddress))
 					continue;
@@ -498,7 +499,7 @@ public class QtClassSolver {
 		memory.getBytes(metacallBody.getMinAddress(), metacallBytes);
 		state.setVar(qtStaticMetacall.getEntryPoint(), metacallBytes.length, true, metacallBytes);
 		
-		AddressSpace addrSpace = address.getAddressSpace();
+		AddressSpace addrSpace = qtStaticMetacall.getEntryPoint().getAddressSpace();
 		int pSize = addrSpace.getPointerSize();
 		
 		state.setVar(addrSpace, 0x10000, pSize, true, arithmetic.fromConst(0x8000, pSize));
@@ -539,7 +540,12 @@ public class QtClassSolver {
 	}
 	
 	private Function solveQtMethod(Address methodAddress, int index) throws InvalidInputException {
+		//this is necessary since Ghidra sometimes put functions references in the const space
+		AddressSpace ram = program.getAddressFactory().getAddressSpace("ram");
+		methodAddress = ram.getAddress(methodAddress.getOffset());
+		
 		Function method = functionManager.getFunctionAt(methodAddress);
+		//should create a function here if method == null but let the user do that since is to much work in code
 		
 		QtMetaDataMethodInfo methodInfo = qtClass.getQtMetaDataData().getQtMetaDataMethodInfo(index);
 		QtMetaStringdataData stringdata = qtClass.getQtMetaStringdataData();

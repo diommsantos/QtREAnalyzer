@@ -49,7 +49,7 @@ exists.
 ![QtREAnalyzer Usage](/docs/QtREAnalyzer_usage.gif)
 
 # TODO
-- [ ] Automatically apply function signatures recovered from Qt metadata, see [1](https://www.usenix.org/conference/usenixsecurity23/presentation/wen).
+- [x] Automatically apply function signatures recovered from Qt metadata, see [1](https://www.usenix.org/conference/usenixsecurity23/presentation/wen).
 - [ ] Automatically apply properties names and types from Qt metadata, see [1](https://www.usenix.org/conference/usenixsecurity23/presentation/wen).
 - [ ] Recover connections between signals and slots.
 - [ ] Identify and recover more Qt classes and methods.
