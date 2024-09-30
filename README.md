@@ -59,6 +59,8 @@ exists.
 
 Currently QtREAnalyzer only works with x32 or x64 binaries that have RTTI (i.e compiled with the MSVC compiler). This is so since QtREAnalyzer uses RTTI to find if classes inherit from QObject. This said if one wants to extend this analyzer to work with binaries without RTTI all that is necessary to do is modify the ``RttiClass.java`` file appropriately.
 
+In very rare cases an incorrect signature will be applied to a function. This is almost impossible to fix since the way QtREAnalyzer maps Qt signals and slots signature to the corresponding function address is heuristic based. This shouldn't be a major limitation, in a file with over 10 000 Qt signals and slots checking manually a substantial sample I only found a handful of erroneously labeled functions.
+
 # Acknowledgments
 
 QtREAnalyzer would have not been possible without the following amazing resources:
