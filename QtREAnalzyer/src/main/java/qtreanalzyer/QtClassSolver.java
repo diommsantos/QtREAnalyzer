@@ -2,12 +2,11 @@ package qtreanalzyer;
 
 import java.util.ArrayList;
 import java.util.HashSet;
-import java.util.Iterator;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 
-import ghidra.app.plugin.processors.sleigh.SleighLanguage;
+import org.apache.commons.lang3.tuple.Pair;
+
 import ghidra.app.util.importer.MessageLog;
 import ghidra.pcode.emu.PcodeEmulator;
 import ghidra.pcode.emu.PcodeThread;
@@ -16,39 +15,32 @@ import ghidra.pcode.exec.PcodeArithmetic.Purpose;
 import ghidra.pcode.exec.PcodeExecutorState;
 import ghidra.pcode.exec.PcodeExecutorStatePiece.Reason;
 import ghidra.pcode.exec.PcodeFrame;
-import ghidra.pcode.exec.PcodeProgram;
-import ghidra.pcode.exec.PcodeUseropLibrary;
-import ghidra.pcode.exec.SleighProgramCompiler;
 import ghidra.program.model.address.Address;
 import ghidra.program.model.address.AddressOutOfBoundsException;
 import ghidra.program.model.address.AddressSetView;
 import ghidra.program.model.address.AddressSpace;
 import ghidra.program.model.data.ArrayDataType;
 import ghidra.program.model.data.DataType;
-import ghidra.program.model.data.DataTypeConflictHandler;
 import ghidra.program.model.data.DataTypeManager;
 import ghidra.program.model.data.EnumDataType;
 import ghidra.program.model.data.PointerDataType;
 import ghidra.program.model.data.Structure;
-import ghidra.program.model.data.StructureDataType;
+import ghidra.program.model.lang.Language;
 import ghidra.program.model.lang.Register;
 import ghidra.program.model.listing.CircularDependencyException;
 import ghidra.program.model.listing.CodeUnit;
 import ghidra.program.model.listing.Data;
 import ghidra.program.model.listing.Function;
 import ghidra.program.model.listing.FunctionManager;
-import ghidra.program.model.listing.GhidraClass;
 import ghidra.program.model.listing.Instruction;
 import ghidra.program.model.listing.InstructionIterator;
 import ghidra.program.model.listing.Listing;
 import ghidra.program.model.listing.ParameterImpl;
 import ghidra.program.model.listing.Program;
-import ghidra.program.model.listing.Variable;
 import ghidra.program.model.listing.Function.FunctionUpdateType;
 import ghidra.program.model.mem.Memory;
 import ghidra.program.model.mem.MemoryAccessException;
 import ghidra.program.model.pcode.PcodeOp;
-import ghidra.program.model.pcode.Varnode;
 import ghidra.program.model.symbol.Reference;
 import ghidra.program.model.symbol.SourceType;
 import ghidra.program.model.symbol.Symbol;
@@ -269,8 +261,7 @@ public class QtClassSolver {
 			DataType voidType = dataTypeManager.getDataType("/void");
 			qtStaticMetacall.setReturnType(voidType, SourceType.ANALYSIS);
 			
-			DataType qMetaObjectPtr = new PointerDataType(qtTypesManager.getQMetaObject(), dataTypeManager);
-			ParameterImpl _o = new ParameterImpl("_o", qMetaObjectPtr, program, SourceType.ANALYSIS);
+			ParameterImpl _o = new ParameterImpl("_o", dataTypeManager.getDataType("/void *"), program, SourceType.ANALYSIS);
 			
 			ParameterImpl _c = new ParameterImpl("_c", dataTypeManager.getDataType("/int"), program, SourceType.ANALYSIS);
 			
@@ -519,8 +510,6 @@ public class QtClassSolver {
 		pCodeThread.overrideContextWithDefault();
 		pCodeThread.reInitialize();
 		
-		Map<Register, byte[]> regs = pCodeThread.getState().getRegisterValues();
-		
 		while(true) {
 			pCodeThread.stepPcodeOp();
 			PcodeFrame frame = pCodeThread.getFrame();
@@ -556,7 +545,7 @@ public class QtClassSolver {
 		method.setReturnType(returnType, SourceType.ANALYSIS);
 		
 		List<ParameterImpl> params = new ArrayList<ParameterImpl>();
-		DataType thisType = new PointerDataType(qtTypesManager.newStruct(qtClass.getName()));
+		DataType thisType = new PointerDataType(qtTypesManager.getQtClassType());
 		params.add(new ParameterImpl("this", thisType, program, SourceType.ANALYSIS));
 		for(int i = 0; i < methodInfo.method().qtArgc(); i++) {
 			DataType paramType = getQtMetaDataType(methodInfo.params().qtParameters()[i]);
@@ -574,6 +563,106 @@ public class QtClassSolver {
 		}
 		
 		return method;
+	}
+	
+	public DataType[] solveQtProperties() {
+		if(qtClass.getQMetaObjectData() == null || qtClass.getQtStaticMetacall() == null)
+			return null;
+		
+		QtMetaDataData qtData = qtClass.getQtMetaDataData();
+		DataType[] properties = new DataType[qtData.getQtPropertiesCount()];
+		for(int i = 0; i< qtData.getQtPropertiesCount(); i++)	
+			try {
+				int propertieOffset = solveQtPropertieAddress(i);
+				properties[i] = solveQtPropertie(propertieOffset, i);
+			} catch (RuntimeException | MemoryAccessException e) {
+				log.appendMsg("QtClassSolver: It was not possible to solve the propertie with index "+i+
+						" for the " + qtClass.getName() + " class.");
+			}
+		return properties;
+	}
+	
+
+	private int solveQtPropertieAddress(int index) throws MemoryAccessException {
+		Function qtStaticMetacall = qtClass.getQtStaticMetacall();
+		AddressSetView metacallBody = qtStaticMetacall.getBody();
+		
+		Language language = program.getLanguage();
+		Register regRIP = language.getRegister("RIP");
+		Register regRSP = language.getRegister("RSP");
+		Register regRCX = language.getRegister("RCX");
+		Register regRDX = language.getRegister("RDX");
+		Register regR8 = language.getRegister("R8");
+		Register regR9 = language.getRegister("R9");
+		BytesExprPcodeEmulator emulator = new BytesExprPcodeEmulator(language);
+		PcodeThread<Pair<byte[], Expr>> pCodeThread = emulator.newThread("qt_static_metacall");
+		PcodeExecutorState<Pair<byte[], Expr>> state = emulator.getSharedState();
+		PcodeExecutorState<Pair<byte[], Expr>> threadState = pCodeThread.getState();
+		PcodeArithmetic<Pair<byte[], Expr>> arithmetic = emulator.getArithmetic();
+		
+		int size = (int) memory.getBlock(".text").getSize();
+		Address address = memory.getBlock(".text").getStart();
+		byte[] metacallBytes = new byte[size];
+		memory.getBytes(address, metacallBytes);
+		state.setVar(address, metacallBytes.length, true, Pair.of(metacallBytes, new VarExpr(address, size)));
+		
+		AddressSpace addrSpace = qtStaticMetacall.getEntryPoint().getAddressSpace();
+		int pSize = addrSpace.getPointerSize();
+		
+		state.setVar(addrSpace, 0x10000, pSize, true, arithmetic.fromConst(0x8000, pSize));
+		state.setVar(addrSpace, 0x8000, 4, true, arithmetic.fromConst(0xffffffff, 4));
+		
+		threadState.setVar(regRIP, arithmetic.fromConst(qtStaticMetacall.getEntryPoint().getOffset(), pSize));
+		threadState.setVar(regRSP, arithmetic.fromConst(0x1000, pSize));
+		threadState.setVar(regRCX, arithmetic.fromConst(0, pSize));
+		threadState.setVar(regRDX, arithmetic.fromConst(1, pSize));
+		threadState.setVar(regR8, arithmetic.fromConst(index, pSize));
+		threadState.setVar(regR9, arithmetic.fromConst(0x10000, pSize));
+		
+		pCodeThread.overrideContextWithDefault();
+		pCodeThread.reInitialize();
+		
+		while(true) {
+			pCodeThread.stepPcodeOp();
+			PcodeFrame frame = pCodeThread.getFrame();
+			if(frame == null)
+				continue;
+			List<PcodeOp> code = frame.getCode();
+			if(frame.index() == code.size() || frame.index() == -1 )
+				continue;
+			Address instAddr = pCodeThread.getInstruction().getAddress();
+			PcodeOp nextPcodeOp = listing.getInstructionAt(instAddr).getPcode(true)[frame.index()];
+			if(nextPcodeOp.getOpcode() == PcodeOp.CALLIND)
+				pCodeThread.skipPcodeOp();
+			if(nextPcodeOp.getOpcode() == PcodeOp.RETURN && metacallBody.contains(instAddr)) {
+				Expr expr = state.getVar(addrSpace, 0x8000, pSize, true, Reason.INSPECT).getRight();
+				return getQtPropertieOffset(expr);
+			}
+		}
+	}
+
+	private int getQtPropertieOffset(Expr expr) {
+		if(expr instanceof LitExpr)
+			return ((LitExpr) expr).val().intValue();
+		if(expr instanceof AddExpr)
+			return getQtPropertieOffset(((AddExpr) expr).l()) + getQtPropertieOffset(((AddExpr) expr).r()); 
+		throw new RuntimeException();
+	}
+	
+	private DataType solveQtPropertie(int offset, int index) {
+		QtMetaDataPropertie propertieInfo = qtClass.getQtMetaDataData().getQtMetaDataPropertie(index);
+		QtMetaStringdataData stringdata = qtClass.getQtMetaStringdataData();
+				
+		DataType propertieType = getQtMetaDataType(propertieInfo.qtType());
+		String propertieName = stringdata.getQtStringdata(propertieInfo.qtName());
+		
+		Structure qtClassType = qtTypesManager.getQtClassType();
+		if(qtClassType.getLength() <= offset)
+			qtClassType.insertAtOffset(offset, propertieType, 0, propertieName, null);
+		else
+			qtClassType.replaceAtOffset(offset, propertieType, 0, propertieName, null);
+		
+		return propertieType;
 	}
 	
 	private DataType getQtMetaDataType(int type) {
@@ -599,51 +688,4 @@ public class QtClassSolver {
 		return dataType;
 	}
 	
-	public Address getMethod(int index, Data qMetaObject) {
-		PcodeEmulator emulator = new PcodeEmulator(program.getLanguage());
-		PcodeThread<byte[]> pCodeThread = emulator.newThread("qt_static_metacall");
-		//pCodeThread.overrideCounter(qMetaObject.getComponent(0).getComponent(3).
-			//	getOperandReferences(0)[0].getToAddress().add(4));
-		Function qtStaticMetaCall = program.getFunctionManager().getFunctionAt(qMetaObject.getComponent(0).getComponent(3).
-				getOperandReferences(0)[0].getToAddress());
-		byte[] qtStaticMetaCallB = new byte[1000];
-		try {
-			program.getMemory().getBlock(qtStaticMetaCall.getBody().getMinAddress())
-			.getBytes(qtStaticMetaCall.getBody().getMinAddress(), qtStaticMetaCallB, 0, (int) qtStaticMetaCall.getBody().getNumAddresses());
-		} catch (IndexOutOfBoundsException | MemoryAccessException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
-		emulator.getSharedState()
-		.setVar(program.getAddressFactory().getDefaultAddressSpace().getAddress(0x200), 1000, true, qtStaticMetaCallB);
-		PcodeUseropLibrary<byte[]> library = pCodeThread.getUseropLibrary();
-		PcodeProgram init =
-				SleighProgramCompiler.compileProgram((SleighLanguage) program.getLanguage(), "init", String.format("""
-						RIP = 0x%s;
-						RSP = 0x00001000;
-						""", program.getAddressFactory().getDefaultAddressSpace().getAddress(0x200)), library);
-		pCodeThread.getExecutor().execute(init, library);
-		pCodeThread.overrideContextWithDefault();
-		pCodeThread.reInitialize();
-		PcodeOp[] pCodeOps;
-		outerLoop:
-		while(true) {
-			pCodeThread.stepInstruction();
-			pCodeThread.stepPcodeOp();
-			pCodeOps = pCodeThread.getInstruction().getPcode();
-			pCodeThread.finishInstruction();
-			for(int i = 0; i < pCodeOps.length; i++) {
-				if(pCodeOps[i].getMnemonic().equals("CALL")) {
-					break outerLoop;
-				}
-				if(pCodeOps[i].getMnemonic().equals("CALLIND")) {
-					return null;
-				}
-				if(pCodeOps[i].getMnemonic().equals("RET")) {
-					return null;
-				}
-			}
-		}
-		return pCodeThread.getInstruction().getAddress();
-	}
 }

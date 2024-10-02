@@ -10,7 +10,8 @@ QtREAnalyzer is a Ghidra Analyzer designed to reverse-engineer binaries that uti
 - Identifies and labels qt_meta_data objects created by the Qt moc.
 - Identifies and labels qt_static_metacall functions created by the Qt moc.
 - Annotates with comments the previously identified qt_static_metacall functions with the methods and propertie signatures recovered from the Qt meta data.
-- Identifies and applies method signatures, i.e. Qt methods (signals and slots) get their original name, parameter types and sometimes parameter names depending on the available metadata.   
+- Identifies and applies method signatures, i.e. Qt methods (signals and slots) get their original name, parameter types and sometimes parameter names depending on the available metadata.
+- Identifies and applies propertie names and types to the base Qt class, i.e. Qt properties get their original name and sometimes full types depending on the available metadata, and are created in the class data type they belong to.   
 
 
 # Installation
@@ -51,7 +52,7 @@ exists.
 
 # TODO
 - [x] Automatically apply function signatures recovered from Qt metadata, see [1](https://www.usenix.org/conference/usenixsecurity23/presentation/wen).
-- [ ] Automatically apply properties names and types from Qt metadata, see [1](https://www.usenix.org/conference/usenixsecurity23/presentation/wen).
+- [x] Automatically apply properties names and types from Qt metadata, see [1](https://www.usenix.org/conference/usenixsecurity23/presentation/wen).
 - [ ] Recover connections between signals and slots.
 - [ ] Identify and recover more Qt classes and methods.
 
@@ -59,7 +60,7 @@ exists.
 
 Currently QtREAnalyzer only works with x32 or x64 binaries that have RTTI (i.e compiled with the MSVC compiler). This is so since QtREAnalyzer uses RTTI to find if classes inherit from QObject. This said if one wants to extend this analyzer to work with binaries without RTTI all that is necessary to do is modify the ``RttiClass.java`` file appropriately.
 
-In very rare cases an incorrect signature will be applied to a function. This is almost impossible to fix since the way QtREAnalyzer maps Qt signals and slots signature to the corresponding function address is heuristic based. This shouldn't be a major limitation, in a file with over 10 000 Qt signals and slots checking manually a substantial sample I only found a handful of erroneously labeled functions.
+In very rare cases an incorrect signature will be applied to a function or a property will be added to a data type in the incorrect address. This is almost impossible to fix since the way QtREAnalyzer maps Qt signals, slots and propertie signatures to the corresponding function address/propertie offset is heuristic based. This shouldn't be a major limitation, in a file with over 10 000 Qt signals and slots checking manually a substantial sample I only found a handful of erroneously labeled symbols.
 
 # Acknowledgments
 

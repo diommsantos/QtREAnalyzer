@@ -2,17 +2,12 @@ package qtreanalzyer;
 
 import ghidra.program.model.address.Address;
 import ghidra.program.model.address.AddressOutOfBoundsException;
-import ghidra.program.model.address.AddressSpace;
 import ghidra.program.model.data.Array;
-import ghidra.program.model.data.ArrayDataType;
-import ghidra.program.model.data.DataType;
 import ghidra.program.model.listing.Data;
 import ghidra.program.model.listing.Function;
 import ghidra.program.model.listing.GhidraClass;
 import ghidra.program.model.mem.MemoryAccessException;
 import ghidra.program.model.scalar.Scalar;
-import ghidra.program.model.util.CodeUnitInsertionException;
-import ghidra.util.exception.InvalidInputException;
 
 /**
  * Represents a C++ class that inherits the QObject Qt class.
@@ -70,6 +65,7 @@ public class QtClass extends RttiClass{
 		
 		qtClassSolver.solveQtMethods();
 		
+		qtClassSolver.solveQtProperties();		
 	}
 	
 	public QMetaObjectData getQMetaObjectData() {

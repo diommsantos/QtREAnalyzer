@@ -4,6 +4,7 @@ import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import ghidra.app.util.cparser.C.CParser;
 import ghidra.app.util.cparser.C.ParseException;
@@ -18,7 +19,6 @@ import ghidra.program.model.data.StructureDataType;
 import ghidra.program.model.data.TypeDef;
 import ghidra.program.model.data.TypedefDataType;
 import ghidra.program.model.listing.Program;
-import ghidra.util.exception.CancelledException;
 import ghidra.util.exception.DuplicateNameException;
 
 public class QtTypesManager {
@@ -26,6 +26,7 @@ public class QtTypesManager {
 		static CategoryPath QT_ROOT = new CategoryPath("/Qt");
 		
 		static QtTypesManager qtTypesManager = null;
+		static String qtClassName;
 		static CategoryPath qtClassPath;
 		
 		Program program;
@@ -126,6 +127,7 @@ public class QtTypesManager {
 		}
 		
 		public static QtTypesManager getQtTypesManager(QtClass qtClass) {
+			qtClassName = qtClass.getName();
 			qtClassPath = QT_ROOT.extend(qtClass.getName(true).split("::"));
 			return qtTypesManager;
 		}
@@ -161,6 +163,11 @@ public class QtTypesManager {
 			return false;
 		}
 		
+		public Structure getQtClassType() {
+			Structure qtClassType = (Structure) dataTypeManager.getDataType(qtClassPath, qtClassName);
+			return qtClassType != null ? qtClassType : qtTypesManager.newStruct(qtClassName);
+		}
+		
 		public DataType findOrCreateQtType(String dataTypeName, boolean caseSensitive) {
 			List<DataType> types = new ArrayList<DataType>();
 			dataTypeManager.findDataTypes(dataTypeName, types, caseSensitive, null);
@@ -171,8 +178,13 @@ public class QtTypesManager {
 				}	
 			}
 			
-			if(types.size() > 0)
+			if(types.size() > 0) {
+				for(DataType type : types) {
+					if(dataTypeName.toLowerCase(Locale.ROOT).equals(type.getName()))
+						return type;
+				}
 				return types.get(0);
+			}
 			
 			String[] dataTypePath = dataTypeName.split("::");
 			Structure dataType = new StructureDataType(dataTypePath[dataTypePath.length-1], 0, dataTypeManager);

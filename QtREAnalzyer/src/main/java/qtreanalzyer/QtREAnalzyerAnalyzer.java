@@ -21,19 +21,11 @@ import ghidra.app.services.AbstractAnalyzer;
 import ghidra.app.services.AnalyzerType;
 import ghidra.app.util.importer.MessageLog;
 import ghidra.framework.options.Options;
-import ghidra.program.model.address.Address;
-import ghidra.program.model.address.AddressRange;
 import ghidra.program.model.address.AddressSetView;
-import ghidra.program.model.listing.Data;
 import ghidra.program.model.listing.GhidraClass;
 import ghidra.program.model.listing.Program;
-import ghidra.program.model.mem.MemoryAccessException;
-import ghidra.program.model.symbol.Symbol;
-import ghidra.program.model.symbol.SymbolIterator;
 import ghidra.program.model.symbol.SymbolTable;
-import ghidra.program.model.util.CodeUnitInsertionException;
 import ghidra.util.exception.CancelledException;
-import ghidra.util.exception.InvalidInputException;
 import ghidra.util.task.TaskMonitor;
 
 /**
@@ -111,6 +103,5 @@ public class QtREAnalzyerAnalyzer extends AbstractAnalyzer {
 		int i = 0;
 		for ( ; classNamespacesIterator.hasNext() ; ++i ) classNamespacesIterator.next();
 		monitor.initialize(i);
-		
 	}
 }
