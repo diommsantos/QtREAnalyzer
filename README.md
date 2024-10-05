@@ -66,7 +66,7 @@ In very rare cases an incorrect signature will be applied to a function or a pro
 
 QtREAnalyzer would have not been possible without the following amazing resources:
 
-- https://www.usenix.org/conference/usenixsecurity23/presentation/wen and its github page https://github.com/OSUSecLab/QtRE
+- The [article](https://www.usenix.org/conference/usenixsecurity23/presentation/wen) "Egg Hunt in Tesla Infotainment: A First Look at Reverse Engineering of Qt Binaries" by Wen, Haohuang and Lin, Zhiqiang and its [github repository](https://github.com/OSUSecLab/QtRE)
 - https://ktln2.org/reversing-c%2B%2B-qt-applications-using-ghidra/
 - https://woboq.com/blog/how-qt-signals-slots-work.html
 - https://www.codeproject.com/articles/31330/qt-internals-reversing
