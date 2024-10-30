@@ -145,7 +145,9 @@ public class QtClassSolver {
 		DataType intDataType = program.getDataTypeManager().getDataType("/int");
 		int intLenght = intDataType.getLength();
 		
-		Address strdata0IndexAddr = qtMetaStringdataAddress.add(intLenght * 4);
+		// Calculate the offset within the QArrayData struct to the "offset" field
+		int strdata0IndexOffset = qtTypesManager.getQArrayData().getComponent(4).getOffset();
+		Address strdata0IndexAddr = qtMetaStringdataAddress.add(strdata0IndexOffset);
 		long stringdata0Index = memory.getLong(strdata0IndexAddr);
 		
 		DataType qByteArrayData = qtTypesManager.getQByteArrayData();

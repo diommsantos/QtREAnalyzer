@@ -13,6 +13,7 @@ import ghidra.program.model.data.DataType;
 import ghidra.program.model.data.DataTypeConflictHandler;
 import ghidra.program.model.data.DataTypeManager;
 import ghidra.program.model.data.EnumDataType;
+import ghidra.program.model.data.InvalidDataTypeException;
 import ghidra.program.model.data.PointerDataType;
 import ghidra.program.model.data.Structure;
 import ghidra.program.model.data.StructureDataType;
@@ -92,8 +93,8 @@ public class QtTypesManager {
 				qArrayData = new StructureDataType(QT_ROOT, "QArrayData", 0, dataTypeManager);
 				qArrayData.add(dataTypeManager.getDataType("/int"), "ref", null);
 				qArrayData.add(dataTypeManager.getDataType("/int"), "size", null);
-				qArrayData.add(dataTypeManager.getDataType("/uint"), "alloc", null);
-				qArrayData.add(dataTypeManager.getDataType("/uint"), "capacityReserved", null);
+				qArrayData.addBitField(dataTypeManager.getDataType("/uint"), 31, "alloc", null);
+				qArrayData.addBitField(dataTypeManager.getDataType("/uint"), 1, "capacityReserved", null);
 				qArrayData.add(dataTypeManager.getDataType("/void *"), "offset", null);
 				qArrayData.setToDefaultPacking();
 				qArrayData = (Structure) dataTypeManager.addDataType(qArrayData, DataTypeConflictHandler.REPLACE_HANDLER);
@@ -120,7 +121,7 @@ public class QtTypesManager {
 				superData.add(new PointerDataType(qMetaObject), "direct", null);
 				superData.setToDefaultPacking();
 				
-			} catch (ParseException e) {
+			} catch (ParseException | InvalidDataTypeException e) {
 				// TODO Auto-generated catch block
 				e.printStackTrace();
 			}
@@ -132,7 +133,7 @@ public class QtTypesManager {
 			return qtTypesManager;
 		}
 		
-		public DataType getQArrayData() {
+		public Structure getQArrayData() {
 			return qArrayData;
 		}
 		
