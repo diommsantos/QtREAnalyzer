@@ -111,9 +111,15 @@ public class QtClassSolver {
 		InstructionIterator instructions = listing.getInstructions(metaObject.getBody(), true);
 		while(instructions.hasNext()) {
 			Instruction instruction = instructions.next();
-			if(instruction.getMnemonicString().equals("LEA")) {
+			String mnemonic = instruction.getMnemonicString();
+			if(mnemonic.equals("LEA") || mnemonic.equals("MOV")) {
+				if(instruction.getOperandReferences(1).length <= 0) {
+					continue;
+				}
 				reference = instruction.getOperandReferences(1)[0];
-				return reference.getToAddress();
+				if(reference.getReferenceType().isData()) {
+					return reference.getToAddress();
+				}
 			}
 		}
 		return null;
