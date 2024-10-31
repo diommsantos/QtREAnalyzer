@@ -111,9 +111,15 @@ public class QtClassSolver {
 		InstructionIterator instructions = listing.getInstructions(metaObject.getBody(), true);
 		while(instructions.hasNext()) {
 			Instruction instruction = instructions.next();
-			if(instruction.getMnemonicString().equals("LEA")) {
+			String mnemonic = instruction.getMnemonicString();
+			if(mnemonic.equals("LEA") || mnemonic.equals("MOV")) {
+				if(instruction.getOperandReferences(1).length <= 0) {
+					continue;
+				}
 				reference = instruction.getOperandReferences(1)[0];
-				return reference.getToAddress();
+				if(reference.getReferenceType().isData()) {
+					return reference.getToAddress();
+				}
 			}
 		}
 		return null;
@@ -139,7 +145,9 @@ public class QtClassSolver {
 		DataType intDataType = program.getDataTypeManager().getDataType("/int");
 		int intLenght = intDataType.getLength();
 		
-		Address strdata0IndexAddr = qtMetaStringdataAddress.add(intLenght * 4);
+		// Calculate the offset within the QArrayData struct to the "offset" field
+		int strdata0IndexOffset = qtTypesManager.getQArrayData().getComponent(4).getOffset();
+		Address strdata0IndexAddr = qtMetaStringdataAddress.add(strdata0IndexOffset);
 		long stringdata0Index = memory.getLong(strdata0IndexAddr);
 		
 		DataType qByteArrayData = qtTypesManager.getQByteArrayData();
