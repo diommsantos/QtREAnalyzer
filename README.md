@@ -11,8 +11,7 @@ QtREAnalyzer is a Ghidra Analyzer designed to reverse-engineer binaries that uti
 - Identifies and labels qt_static_metacall functions created by the Qt moc.
 - Annotates with comments the previously identified qt_static_metacall functions with the methods and propertie signatures recovered from the Qt meta data.
 - Identifies and applies method signatures, i.e. Qt methods (signals and slots) get their original name, parameter types and sometimes parameter names depending on the available metadata.
-- Identifies and applies propertie names and types to the base Qt class, i.e. Qt properties get their original name and sometimes full types depending on the available metadata, and are created in the class data type they belong to.   
-- To analyze 32-bit Qt applicaitons check out  this fork [finngineering/QtREAnalyzer](https://github.com/finngineering/QtREAnalyzer)
+- Identifies and applies propertie names and types to the base Qt class, i.e. Qt properties get their original name and sometimes full types depending on the available metadata, and are created in the class data type they belong to.
 
 # Installation
 
