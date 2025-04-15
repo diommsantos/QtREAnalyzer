@@ -122,13 +122,13 @@ enum ExprPcodeArithmetic implements PcodeArithmetic<Expr> {
 	}
 
 	@Override
-	public Expr modBeforeStore(int sizeout, int sizeinAddress, Expr inAddress, int sizeinValue,
+	public Expr modBeforeStore(int sizeinOffset, AddressSpace space, Expr inOffset, int sizeinValue,
 			Expr inValue) {
 		return inValue;
 	}
 
 	@Override
-	public Expr modAfterLoad(int sizeout, int sizeinAddress, Expr inAddress, int sizeinValue,
+	public Expr modAfterLoad(int sizeinOffset, AddressSpace space, Expr inOffset, int sizeinValue,
 			Expr inValue) {
 		return inValue;
 	}
